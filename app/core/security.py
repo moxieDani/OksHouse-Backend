@@ -36,10 +36,6 @@ JWT_ALGORITHM = settings.jwt_algorithm
 ACCESS_TOKEN_EXPIRE_SECONDS = settings.access_token_expire_seconds
 REFRESH_TOKEN_EXPIRE_SECONDS = settings.refresh_token_expire_seconds
 
-# 인증된 관리자 세션 관리
-authenticated_admin_sessions = set()
-
-
 def create_access_token(admin_id: int, admin_name: str) -> str:
     """액세스 토큰 생성"""
     expire = int(time.time()) + ACCESS_TOKEN_EXPIRE_SECONDS
@@ -77,18 +73,3 @@ def verify_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="토큰이 만료되었습니다")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다")
-
-
-def add_admin_session(admin_id: int):
-    """관리자 세션 추가"""
-    authenticated_admin_sessions.add(admin_id)
-
-
-def remove_admin_session(admin_id: int):
-    """관리자 세션 제거"""
-    authenticated_admin_sessions.discard(admin_id)
-
-
-def is_admin_session_valid(admin_id: int) -> bool:
-    """관리자 세션 유효성 확인"""
-    return admin_id in authenticated_admin_sessions

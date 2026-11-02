@@ -157,7 +157,8 @@ async def get_current_admin(
 @router.post("/logout")
 async def logout_admin(
     response: Response,
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_async_db),
 ):
     """관리자 로그아웃"""
     try:
@@ -183,7 +184,7 @@ async def logout_admin(
                 from app.core.security import verify_token
                 token_data = verify_token(access_token)
                 if token_data["type"] == "access":
-                    AuthService.logout_admin(token_data["admin_id"])
+                    AuthService.logout_admin(db, token_data["admin_id"])
             except:
                 pass  # 토큰 오류는 무시 (이미 로그아웃 중)
         

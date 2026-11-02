@@ -3,14 +3,12 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.admin import Admin
+from app.models.admin_session import AdminSession
 from app.schemas.auth import AdminPhoneRequest, TokenResponse, AdminInfo
 from app.core.security import (
     create_access_token, 
     create_refresh_token,
     verify_token,
-    add_admin_session,
-    remove_admin_session,
-    is_admin_session_valid
 )
 
 
@@ -33,7 +31,7 @@ class AuthService:
                 )
             
             # 세션에 관리자 추가
-            add_admin_session(admin.admin_id)
+            AuthService.add_admin_session(db, admin.admin_id)
             
             # 토큰 생성
             access_token = create_access_token(admin.admin_id, admin.name)
@@ -77,7 +75,7 @@ class AuthService:
             admin_name = token_data["admin_name"]
             
             # 세션 유효성 확인
-            if not is_admin_session_valid(admin_id):
+            if not AuthService.is_admin_session_valid(db, admin_id):
                 raise HTTPException(status_code=401, detail="관리자 세션이 만료되었습니다")
             
             # 관리자 존재 확인
@@ -138,7 +136,7 @@ class AuthService:
             admin_id = token_data["admin_id"]
             
             # 세션 유효성 확인
-            if not is_admin_session_valid(admin_id):
+            if not AuthService.is_admin_session_valid(db, admin_id):
                 raise HTTPException(status_code=401, detail="관리자 세션이 만료되었습니다")
             
             # 관리자 정보 조회
@@ -157,6 +155,22 @@ class AuthService:
         )
 
     @staticmethod
-    def logout_admin(admin_id: int):
+    def add_admin_session(db: Session, admin_id: int):
+        """Persist an authenticated administrator session."""
+        session = db.get(AdminSession, admin_id)
+        if session is None:
+            db.add(AdminSession(admin_id=admin_id))
+        db.commit()
+
+    @staticmethod
+    def is_admin_session_valid(db: Session, admin_id: int) -> bool:
+        """Check the shared database for an authenticated administrator."""
+        return db.get(AdminSession, admin_id) is not None
+
+    @staticmethod
+    def logout_admin(db: Session, admin_id: int):
         """관리자 로그아웃 (세션 제거)"""
-        remove_admin_session(admin_id)
+        session = db.get(AdminSession, admin_id)
+        if session is not None:
+            db.delete(session)
+            db.commit()

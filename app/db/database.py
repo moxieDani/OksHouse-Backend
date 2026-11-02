@@ -12,6 +12,7 @@ Base = declarative_base()
 from app.models.admin import Admin
 from app.models.reservation import Reservation
 from app.models.fcm import FCMToken
+from app.models.admin_session import AdminSession
 
 # Database directory setup for local SQLite
 if settings.database_url.startswith("sqlite"):
@@ -23,10 +24,29 @@ if settings.database_url.startswith("sqlite"):
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
 
+
+def database_engine_options(database_url: str) -> dict:
+    """Return connection options for the configured database backend."""
+    if database_url.startswith("sqlite"):
+        return {"connect_args": {"check_same_thread": False}}
+    if database_url.startswith("postgresql"):
+        # Neon suspends idle computes; validate pooled connections and recycle
+        # them before its default five-minute scale-to-zero interval.
+        return {"pool_pre_ping": True, "pool_recycle": 240}
+    return {}
+
+
+def normalize_database_url(database_url: str) -> str:
+    """Use the installed psycopg 3 driver for standard Neon PostgreSQL URLs."""
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return database_url
+
+
 # Database engine
 engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    normalize_database_url(settings.database_url),
+    **database_engine_options(settings.database_url),
 )
 
 # Session factory
